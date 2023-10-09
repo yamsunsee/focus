@@ -78,7 +78,7 @@ const App = () => {
       </div>
       <form onSubmit={handleSubmit} className="group w-full relative overflow-hidden rounded-2xl bg-white/5 p-8">
         <button className="group-hover:visible invisible absolute bg-white/5 right-0 bottom-0 rounded-tl-2xl uppercase px-8 py-4 font-bold hover:cursor-pointer hover:bg-white/10">
-          Submit
+          Lưu
         </button>
         <textarea
           className="placeholder:text-white/50 bg-transparent resize-none w-full outline-none"
