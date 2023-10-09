@@ -1,11 +1,23 @@
+import moment from "moment/moment";
+import "moment/locale/vi";
 import focus from "/focus.png";
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
 
 const App = () => {
   const [count, setCount] = useState(1);
   const [click, setClick] = useState(0);
   const [input, setInput] = useState("");
+  const [time, setTime] = useState("");
   const [messages, setMessages] = useState([]);
+
+  const formattedMessages = useMemo(() => {
+    return messages.reduce((output, current) => {
+      const date = current.timestamp.split(", ")[0];
+      if (!Object.keys(output).includes(date)) output[date] = [current];
+      else output[date].push(current);
+      return output;
+    }, {});
+  }, [messages]);
 
   useLayoutEffect(() => {
     const localData = localStorage.getItem("focus-count");
@@ -28,6 +40,15 @@ const App = () => {
     }
   }, []);
 
+  useLayoutEffect(() => {
+    const localData = localStorage.getItem("focus-time");
+    if (localData) {
+      const localTime = JSON.parse(localData);
+      setTime(localTime);
+    }
+    localStorage.setItem("focus-time", JSON.stringify(new Date().toLocaleString()));
+  }, []);
+
   const handleSubmit = (event) => {
     event.preventDefault();
     if (input.trim().length > 0) {
@@ -42,8 +63,15 @@ const App = () => {
     setInput("");
   };
 
-  const handleRemove = (timestamp) => {
-    const newMessages = messages.filter((message) => message.timestamp !== timestamp);
+  const handleKeyboard = (event) => {
+    const { ctrlKey, code } = event;
+    if (ctrlKey && code === "Enter") handleSubmit(event);
+  };
+
+  const handleRemove = (targetMessage) => {
+    const newMessages = messages.filter(
+      (message) => message.timestamp !== targetMessage.timestamp && message.context !== targetMessage.content
+    );
     setMessages(newMessages);
     localStorage.setItem("focus-messages", JSON.stringify(newMessages));
   };
@@ -60,13 +88,23 @@ const App = () => {
 
   return (
     <main className="p-8 min-h-screen bg-black text-white flex flex-col gap-8 items-center">
-      <div className="text-4xl uppercase font-bold flex flex-col gap-2 items-center">
+      <div className="md:text-4xl uppercase font-bold flex flex-col gap-2 items-center text-center">
         <div>
-          Mày đã xao nhãng lần<span className="text-blue-400"> thứ {count}</span>
+          Mày đã sao nhãng lần<span className="text-red-400"> thứ {count}</span>
         </div>
-        <div className="text-red-400">Tập trung lại nào!</div>
+        {time && (
+          <div>
+            Lần gần nhất là khoảng<span className="text-blue-400"> {moment(time).fromNow()}</span>
+          </div>
+        )}
+        <div className="text-orange-400 text-2xl md:text-6xl">Tập trung lại nào!</div>
       </div>
-      <div className="group w-40 overflow-hidden rounded-2xl" onClick={handleClick} onMouseLeave={() => setClick(0)}>
+      <div
+        className="group w-40 overflow-hidden rounded-2xl"
+        onClick={handleClick}
+        onMouseLeave={() => setClick(0)}
+        title="Nhấn 7 lần vào đây để xoá lịch sử cho đỡ nhục nè!"
+      >
         <img
           className="group-hover:scale-110 group-hover:saturate-150 saturate-100 transition-all cursor-pointer"
           width={160}
@@ -86,27 +124,38 @@ const App = () => {
           rows={5}
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Viết những ý định mày muốn làm vào đây..."
+          onKeyDown={handleKeyboard}
+          placeholder="Viết lời giải thích tại sao mày lại bị sao nhãng hay những công việc mà mày cần phải hoàn thành nhưng vì lười quá nên chưa làm vào đây... Nhấn Ctrl + Enter để lưu cho lần sau vô còn có cái đọc lại!"
         />
       </form>
       {messages.length > 0 && (
         <div className="w-full flex flex-col gap-4">
           <div className="font-bold text-2xl">
-            Những ý định lúc trước mày muốn làm ở bên dưới nè! Mày đã viết {messages.length} cái rồi!
+            Lý do của những lần trước mày viết ở bên dưới nè! Đọc lại và tập trung hoàn thành công việc đi! Mày đã viết
+            được {messages.length} cái rồi!
           </div>
-          <div className="flex flex-col gap-2">
-            {messages.map((message, index) => (
-              <div key={index} className="group overflow-hidden p-8 bg-white/5 rounded-2xl relative">
-                <div className="text-[10px] font-bold absolute top-0 left-0 bg-white/5 px-4 py-1 rounded-br-2xl">
-                  {message.timestamp}
+          <div className="flex flex-col gap-4">
+            {Object.keys(formattedMessages).map((group, index) => (
+              <div key={index}>
+                <p className="first-letter:uppercase text-[10px] italic text-white/50 mb-1">
+                  {moment(group).format("dddd, [ngày] Do MMMM [năm] YYYY")}
+                </p>
+                <div className="flex flex-col gap-2">
+                  {formattedMessages[group].map((message, index) => (
+                    <div key={index} className="group overflow-hidden p-8 bg-white/5 rounded-2xl relative">
+                      <div className="text-[10px] font-bold absolute top-0 left-0 bg-white/5 px-4 py-1 rounded-br-2xl">
+                        {moment(message.timestamp).format("hh:mm")} {message.timestamp.split(" ")[2]}
+                      </div>
+                      <div
+                        onClick={() => handleRemove(message)}
+                        className="group-hover:visible invisible hover:cursor-pointer hover:bg-white/10 text-[10px] font-bold absolute top-0 right-0 bg-white/5 px-4 py-1 rounded-bl-2xl"
+                      >
+                        x
+                      </div>
+                      <div dangerouslySetInnerHTML={{ __html: message.content }}></div>
+                    </div>
+                  ))}
                 </div>
-                <div
-                  onClick={() => handleRemove(message.timestamp)}
-                  className="group-hover:visible invisible hover:cursor-pointer hover:bg-white/10 text-[10px] font-bold absolute top-0 right-0 bg-white/5 px-4 py-1 rounded-bl-2xl"
-                >
-                  x
-                </div>
-                <div dangerouslySetInnerHTML={{ __html: message.content }}></div>
               </div>
             ))}
           </div>
